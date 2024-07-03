@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"strings"
 )
 
 const (
@@ -21,7 +20,7 @@ type PairList struct {
 }
 
 func main() {
-	fmt.Println("Starting Prime Time Server...")
+	fmt.Println("Starting Price Query Server...")
 	listen, err := net.Listen(TYPE, HOST+":"+PORT)
 	if err != nil {
 		log.Fatalf("Error starting server: %s", err)
@@ -64,18 +63,14 @@ func handleRequest(conn net.Conn, db *PairList) {
 			continue
 		}
 
-		// Process the buffer to remove \n\r characters coming from telnet
-		processedData := strings.ReplaceAll(string(buffer[:n]), "\r\n", "")
-		fmt.Printf("Received: %s\n", processedData)
-
-		if processedData[0] == 'I' {
-			timestamp := binary.BigEndian.Uint32([]byte(processedData[1:5]))
-			price := int32(binary.BigEndian.Uint32([]byte(processedData[5:9])))
+		if buffer[0] == 'I' {
+			timestamp := binary.BigEndian.Uint32(buffer[1:5])
+			price := int32(binary.BigEndian.Uint32(buffer[5:9]))
 			fmt.Printf("timestamp = %d, price = %d\n", timestamp, price)
 			db.pairs[timestamp] = price
-		} else if processedData[0] == 'Q' {
-			minTime := binary.BigEndian.Uint32([]byte(processedData[1:5]))
-			maxTime := binary.BigEndian.Uint32([]byte(processedData[5:9]))
+		} else if buffer[0] == 'Q' {
+			minTime := binary.BigEndian.Uint32(buffer[1:5])
+			maxTime := binary.BigEndian.Uint32(buffer[5:9])
 			fmt.Printf("minTime = %d, maxTime = %d\n", minTime, maxTime)
 			var mean int32 = 0
 			var count int32 = 0
