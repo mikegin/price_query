@@ -42,7 +42,7 @@ func handleRequest(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	buffer := make([]byte, MESSAGE_SIZE)
 
-	pairs := map[uint32]int32{}
+	pairs := map[int32]int32{}
 
 	for {
 		n, err := io.ReadFull(reader, buffer)
@@ -61,13 +61,17 @@ func handleRequest(conn net.Conn) {
 		}
 
 		if buffer[0] == 'I' {
-			timestamp := binary.BigEndian.Uint32(buffer[1:5])
-			price := int32(binary.BigEndian.Uint32(buffer[5:9]))
+			var timestamp int32
+			var price int32
+			binary.Read(bytes.NewBuffer(buffer[1:5]), binary.BigEndian, &timestamp)
+			binary.Read(bytes.NewBuffer(buffer[5:9]), binary.BigEndian, &price)
 			fmt.Printf("timestamp = %d, price = %d\n", timestamp, price)
 			pairs[timestamp] = price
 		} else if buffer[0] == 'Q' {
-			minTime := binary.BigEndian.Uint32(buffer[1:5])
-			maxTime := binary.BigEndian.Uint32(buffer[5:9])
+			var minTime int32
+			var maxTime int32
+			binary.Read(bytes.NewBuffer(buffer[1:5]), binary.BigEndian, &minTime)
+			binary.Read(bytes.NewBuffer(buffer[5:9]), binary.BigEndian, &maxTime)
 			fmt.Printf("minTime = %d, maxTime = %d\n", minTime, maxTime)
 			// use int64 since working with large values like 1178774581940 -- FAIL:Q 285864834 377826687: expected 49374825 (1178774581940/23874), got 81827
 			var mean int64 = 0
