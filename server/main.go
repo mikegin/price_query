@@ -10,14 +10,11 @@ import (
 )
 
 const (
-	HOST = "0.0.0.0"
-	PORT = "8080"
-	TYPE = "tcp"
+	HOST         = "0.0.0.0"
+	PORT         = "8080"
+	TYPE         = "tcp"
+	MESSAGE_SIZE = 9
 )
-
-type PairList struct {
-	pairs map[uint32]int32
-}
 
 func main() {
 	fmt.Println("Starting Price Query Server...")
@@ -29,24 +26,23 @@ func main() {
 	defer listen.Close()
 	fmt.Println("Server listening on", HOST+":"+PORT)
 
-	db := &PairList{
-		pairs: make(map[uint32]int32),
-	}
-
 	for {
 		conn, err := listen.Accept()
 		if err != nil {
 			log.Printf("Error accepting connection: %s", err)
 			continue
 		}
-		go handleRequest(conn, db)
+		go handleRequest(conn)
 	}
 }
 
-func handleRequest(conn net.Conn, db *PairList) {
+func handleRequest(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
-	buffer := make([]byte, 9)
+	buffer := make([]byte, MESSAGE_SIZE)
+
+	pairs := map[uint32]int32{}
+
 	for {
 		n, err := io.ReadFull(reader, buffer)
 		if err != nil {
@@ -57,8 +53,8 @@ func handleRequest(conn net.Conn, db *PairList) {
 			conn.Close()
 			return
 		}
-		if n < 9 {
-			fmt.Println("Less than 9 bytes in message")
+		if n != MESSAGE_SIZE {
+			fmt.Println("Message isn't 9 bytes")
 			conn.Write([]byte("undefined"))
 			continue
 		}
@@ -67,7 +63,7 @@ func handleRequest(conn net.Conn, db *PairList) {
 			timestamp := binary.BigEndian.Uint32(buffer[1:5])
 			price := int32(binary.BigEndian.Uint32(buffer[5:9]))
 			fmt.Printf("timestamp = %d, price = %d\n", timestamp, price)
-			db.pairs[timestamp] = price
+			pairs[timestamp] = price
 		} else if buffer[0] == 'Q' {
 			minTime := binary.BigEndian.Uint32(buffer[1:5])
 			maxTime := binary.BigEndian.Uint32(buffer[5:9])
@@ -75,7 +71,7 @@ func handleRequest(conn net.Conn, db *PairList) {
 			// use int64 since working with large values like 1178774581940 -- FAIL:Q 285864834 377826687: expected 49374825 (1178774581940/23874), got 81827
 			var mean int64 = 0
 			var count int64 = 0
-			for key, val := range db.pairs {
+			for key, val := range pairs {
 				if minTime <= key && key <= maxTime {
 					mean += int64(val)
 					count += 1
@@ -89,6 +85,7 @@ func handleRequest(conn net.Conn, db *PairList) {
 			binary.BigEndian.PutUint32(response, uint32(mean))
 			conn.Write(response)
 		} else {
+			fmt.Println("Illegal message type received: ", buffer)
 			conn.Write([]byte("undefined"))
 			continue
 		}
