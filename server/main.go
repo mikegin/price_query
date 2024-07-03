@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -81,9 +82,9 @@ func handleRequest(conn net.Conn) {
 				mean /= count
 			}
 
-			response := make([]byte, 4)
-			binary.BigEndian.PutUint32(response, uint32(mean))
-			conn.Write(response)
+			response := &bytes.Buffer{}
+			binary.Write(response, binary.BigEndian, int32(mean))
+			io.Copy(conn, response)
 		} else {
 			fmt.Println("Illegal message type received: ", buffer)
 			conn.Write([]byte("undefined"))
