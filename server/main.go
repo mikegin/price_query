@@ -72,11 +72,12 @@ func handleRequest(conn net.Conn, db *PairList) {
 			minTime := binary.BigEndian.Uint32(buffer[1:5])
 			maxTime := binary.BigEndian.Uint32(buffer[5:9])
 			fmt.Printf("minTime = %d, maxTime = %d\n", minTime, maxTime)
-			var mean int32 = 0
-			var count int32 = 0
+			// use int64 since working with large values like 1178774581940 -- FAIL:Q 285864834 377826687: expected 49374825 (1178774581940/23874), got 81827
+			var mean int64 = 0
+			var count int64 = 0
 			for key, val := range db.pairs {
 				if minTime <= key && key <= maxTime {
-					mean += val
+					mean += int64(val)
 					count += 1
 				}
 			}
